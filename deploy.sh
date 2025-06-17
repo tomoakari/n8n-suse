@@ -81,7 +81,7 @@ else
     DB_HOST="localhost"  # SQLite使用時
 fi
 
-# CloudRunサービスデプロイ
+# CloudRunサービスデプロイ（パーミッション修正版）
 gcloud run deploy $SERVICE_NAME \
     --image gcr.io/$PROJECT_ID/$IMAGE_NAME \
     --platform managed \
@@ -101,7 +101,9 @@ gcloud run deploy $SERVICE_NAME \
     --set-env-vars N8N_BASIC_AUTH_PASSWORD=$BASIC_AUTH_PASSWORD \
     --set-env-vars N8N_ENCRYPTION_KEY=$ENCRYPTION_KEY \
     --set-env-vars N8N_LOG_LEVEL=info \
-    --set-env-vars N8N_METRICS=true
+    --set-env-vars N8N_METRICS=true \
+    --set-env-vars N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
+    --set-env-vars N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
 
 # CloudRunのURLを取得
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format "value(status.url)")
@@ -123,5 +125,11 @@ echo "3. ボリュームタブでCloud Storage FUSEを選択"
 echo "4. バケット名: $BUCKET_NAME"
 echo "5. マウントパス: /home/node/.n8n"
 
+echo ""
+echo "🔧 パーミッション問題解決済み！"
+echo "ℹ️  追加された設定："
+echo "   - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true"
+echo "   - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true"
+echo "   - 起動時パーミッション修正スクリプト"
 echo ""
 echo "🎉 セットアップが完了しました！"

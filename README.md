@@ -65,6 +65,7 @@ n8n-suse/
 ├── Dockerfile              # n8n用カスタムDockerfile
 ├── cloudrun-service.yaml   # CloudRunサービス定義
 ├── deploy.sh               # 自動デプロイスクリプト
+├── fix-permissions.sh      # パーミッション修正スクリプト
 └── README.md               # このファイル
 ```
 
@@ -113,6 +114,25 @@ N8N_BASIC_AUTH_PASSWORD=secure_password
 N8N_ENCRYPTION_KEY=your_32_char_hex_key
 ```
 
+## 🔧 パーミッション問題の解決
+
+このプロジェクトではCloud Storage FUSEを使用する際によく発生するパーミッション問題を自動的に解決します：
+
+### 解決済みの問題
+- `Permissions 0644 for n8n settings file are too wide` エラー
+- Cloud Storage FUSE でのファイル権限問題
+- CloudRun での Webhook 登録解除問題
+
+### 実装された修正
+```bash
+# 環境変数による修正
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
+
+# 起動スクリプトによる修正
+fix-permissions.sh  # 起動時にファイル権限を自動修正
+```
+
 ## 🚨 重要な注意事項
 
 1. **暗号化キーの保管**: デプロイ後に表示される暗号化キーを安全に保存してください
@@ -142,6 +162,12 @@ gsutil ls gs://your-bucket-name/
 gcloud sql instances describe your-instance
 ```
 
+**4. パーミッション警告（解決済み）**
+```
+Permissions 0644 for n8n settings file /home/node/.n8n/config are too wide.
+```
+→ このエラーは自動的に修正されるように設定済みです ✅
+
 ### ログ確認
 
 ```bash
@@ -169,6 +195,13 @@ resources:
     cpu: 2000m      # CPU増加
     memory: 4Gi     # メモリ増加
 ```
+
+## 🆕 最新の更新
+
+- ✅ Cloud Storage FUSE パーミッション問題の自動修正
+- ✅ CloudRun 互換性の向上
+- ✅ 起動時パーミッション修正スクリプト追加
+- ✅ Webhook 登録解除問題の修正
 
 ## 📚 参考リンク
 

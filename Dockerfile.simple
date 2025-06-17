@@ -1,4 +1,4 @@
-# n8n CloudRun用シンプルDockerfile（環境変数のみで解決）
+# n8n CloudRun用シンプルDockerfile（修正版）
 FROM n8nio/n8n:latest
 
 # CloudRunはポート8080を使用
@@ -21,6 +21,9 @@ RUN mkdir -p /home/node/.n8n && \
     chown -R node:node /home/node/.n8n && \
     chmod 700 /home/node/.n8n
 
+# n8nコマンドのパスを確認して修正
+RUN which n8n || find / -name "n8n" -type f 2>/dev/null
+
 # ヘルスチェック用エンドポイント
 ENV N8N_METRICS=true
 
@@ -30,5 +33,5 @@ EXPOSE 8080
 # 権限設定
 USER node
 
-# 直接n8nを起動（環境変数で問題解決）
-CMD ["n8n"]
+# n8nコマンドの正しいパスを使用
+CMD ["/usr/local/bin/n8n"]

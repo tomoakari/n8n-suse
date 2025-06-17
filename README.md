@@ -7,96 +7,102 @@
 - Google Cloud Platform アカウント
 - gcloud CLI インストール済み
 - Docker インストール済み
-- 適切なGCP権限（Cloud Run、Cloud Build、Cloud SQL、Cloud Storage）
+- 適切なGCP権限（Cloud Run、Cloud Build、Cloud Storage）
 
 ## 🏗️ アーキテクチャ
 
+### フルスタック版（PostgreSQL + Cloud Storage）
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Cloud Run     │    │  Cloud Storage  │    │   Cloud SQL     │
 │   (n8n App)    │────│   (File Data)   │    │  (Workflows)    │
-│                 │    │                 │    │                 │
+│                 │    │                 │    │   PostgreSQL    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │   Users/APIs    │
-                    │   (HTTPS)       │
-                    └─────────────────┘
+```
+
+### シンプル版（SQLite + Cloud Storage）
+```
+┌─────────────────┐    ┌─────────────────┐
+│   Cloud Run     │    │  Cloud Storage  │
+│   (n8n App)    │────│  (SQLite + Files)│
+│                 │    │                 │
+└─────────────────┘    └─────────────────┘
 ```
 
 ## 🚀 クイックスタート
 
-### 1. プロジェクト設定
+### 🗄️ オプション1: SQLite版（推奨：シンプル）
+
+小〜中規模の利用に最適！シンプルで管理が楽 😊
 
 ```bash
 # リポジトリをクローン
 git clone https://github.com/tomoakari/n8n-suse.git
 cd n8n-suse
 
-# デプロイスクリプトの設定を編集
-vim deploy.sh
+# SQLite専用デプロイスクリプトを使用
+vim deploy-sqlite.sh  # PROJECT_IDなどを設定
+chmod +x deploy-sqlite.sh
+./deploy-sqlite.sh
 ```
 
-### 2. 重要な設定項目
+### 🐘 オプション2: PostgreSQL版（本番環境推奨）
 
-`deploy.sh`ファイル内の以下の項目を変更してください：
-
-```bash
-PROJECT_ID="your-gcp-project-id"     # ← あなたのGCPプロジェクトID
-REGION="asia-northeast1"             # ← 希望のリージョン
-SERVICE_NAME="n8n-service"           # ← CloudRunサービス名
-BUCKET_NAME="n8n-data-bucket"        # ← ユニークなバケット名
-```
-
-### 3. デプロイ実行
+大規模利用や高可用性が必要な場合
 
 ```bash
-# デプロイスクリプトを実行
+# 通常のデプロイスクリプトを使用
+vim deploy.sh  # PROJECT_IDなどを設定
 chmod +x deploy.sh
 ./deploy.sh
+# Cloud SQLインスタンス作成で "y" を選択
 ```
 
 ## 📁 ファイル構成
 
 ```
 n8n-suse/
-├── Dockerfile              # n8n用カスタムDockerfile
-├── cloudrun-service.yaml   # CloudRunサービス定義
-├── deploy.sh               # 自動デプロイスクリプト
-├── fix-permissions.sh      # パーミッション修正スクリプト
-└── README.md               # このファイル
+├── Dockerfile                      # n8n用カスタムDockerfile
+├── cloudrun-service.yaml           # CloudRunサービス定義（PostgreSQL版）
+├── cloudrun-service-sqlite.yaml    # CloudRunサービス定義（SQLite版）
+├── deploy.sh                       # 自動デプロイスクリプト（選択式）
+├── deploy-sqlite.sh                # SQLite専用デプロイスクリプト
+├── fix-permissions.sh              # パーミッション修正スクリプト
+└── README.md                       # このファイル
 ```
 
-## ⚙️ 設定オプション
+## ⚙️ データベース比較
 
-### データベース選択
+| 項目 | SQLite版 | PostgreSQL版 |
+|------|----------|---------------|
+| **セットアップ** | 🟢 超簡単 | 🟡 やや複雑 |
+| **コスト** | 🟢 安い | 🟡 中程度 |
+| **パフォーマンス** | 🟡 小〜中規模 | 🟢 高性能 |
+| **同時接続** | 🟡 制限あり | 🟢 高い |
+| **バックアップ** | 🟡 手動 | 🟢 自動 |
+| **スケーラビリティ** | 🟡 制限あり | 🟢 高い |
+| **推奨用途** | 個人・小チーム | 企業・本番環境 |
 
-**SQLite（デフォルト）**
-- 簡単セットアップ
-- 小規模利用向け
-- Cloud Storageにデータ保存
+## 🗄️ SQLite版の特徴
 
-**PostgreSQL（推奨：本番環境）**
-- 高可用性
-- スケーラブル
-- Cloud SQLインスタンス使用
+### ✅ メリット
+- **シンプル**: Cloud SQL不要でセットアップ簡単
+- **コスト削減**: PostgreSQLインスタンス料金不要
+- **管理楽**: データベース管理なし
+- **十分な性能**: 小〜中規模なら問題なし
 
-### 永続化ストレージ
+### ⚠️ 制限事項
+- 同時書き込み制限あり
+- 非常に大きなデータセットには不向き
+- 手動バックアップ推奨
 
-**Cloud Storage FUSE（Preview）**
-```yaml
-volumeMounts:
-- name: n8n-storage
-  mountPath: /home/node/.n8n
-
-volumes:
-- name: n8n-storage
-  csi:
-    driver: gcsfuse.csi.storage.gke.io
-    volumeAttributes:
-      bucketName: YOUR_BUCKET_NAME
+### 💾 データ保存場所
+```
+Cloud Storage Bucket:
+└── .n8n/
+    ├── database.sqlite    # ワークフロー・設定データ
+    ├── config            # n8n設定ファイル
+    └── nodes/            # カスタムノード
 ```
 
 ## 🔐 セキュリティ設定
@@ -137,8 +143,8 @@ fix-permissions.sh  # 起動時にファイル権限を自動修正
 
 1. **暗号化キーの保管**: デプロイ後に表示される暗号化キーを安全に保存してください
 2. **Basic認証**: 本番環境では強固なパスワードを設定してください
-3. **データベース**: 本番環境ではCloud SQLの使用を推奨します
-4. **バックアップ**: 定期的にワークフローとデータのバックアップを取ってください
+3. **SQLiteのバックアップ**: 定期的にCloud Storageバケットのバックアップを取ってください
+4. **スケール判断**: 同時ユーザーが多い場合はPostgreSQL版を検討してください
 
 ## 🛠️ トラブルシューティング
 
@@ -156,10 +162,10 @@ ENV N8N_PORT=8080
 gsutil ls gs://your-bucket-name/
 ```
 
-**3. データベース接続エラー**
+**3. SQLiteファイルが見つからない**
 ```bash
-# Cloud SQLプロキシの設定を確認
-gcloud sql instances describe your-instance
+# Cloud Storageバケット内を確認
+gsutil ls gs://your-bucket-name/.n8n/
 ```
 
 **4. パーミッション警告（解決済み）**
@@ -179,7 +185,7 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 
 ### 環境変数の追加
 
-`cloudrun-service.yaml`または`deploy.sh`に環境変数を追加：
+SQLite版の場合は `cloudrun-service-sqlite.yaml` を編集：
 
 ```yaml
 env:
@@ -190,18 +196,40 @@ env:
 ### リソース調整
 
 ```yaml
+# SQLite版は軽量設定
 resources:
   limits:
-    cpu: 2000m      # CPU増加
-    memory: 4Gi     # メモリ増加
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
 ```
 
 ## 🆕 最新の更新
 
+- ✅ **SQLite専用デプロイオプション追加**
 - ✅ Cloud Storage FUSE パーミッション問題の自動修正
 - ✅ CloudRun 互換性の向上
 - ✅ 起動時パーミッション修正スクリプト追加
 - ✅ Webhook 登録解除問題の修正
+- ✅ SQLite最適化設定
+
+## 💡 どちらを選ぶべき？
+
+### SQLite版を選ぶべき場合 🗄️
+- 個人利用や小チーム（〜10人）
+- ワークフロー数が少ない（〜100個）
+- シンプルさを重視
+- コスト削減重視
+- 学習・テスト用途
+
+### PostgreSQL版を選ぶべき場合 🐘
+- 企業や大チーム（10人以上）
+- 大量のワークフロー（100個以上）
+- 高可用性が必要
+- 同時実行が多い
+- 本番環境での安定運用
 
 ## 📚 参考リンク
 

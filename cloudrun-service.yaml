@@ -1,0 +1,114 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: n8n-service
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        # 最小/最大インスタンス数
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        # CPUとメモリの設定
+        run.googleapis.com/cpu: "1"
+        run.googleapis.com/memory: "2Gi"
+        # タイムアウト設定
+        run.googleapis.com/timeout: "3600"
+    spec:
+      containerConcurrency: 1000
+      containers:
+      - name: n8n
+        image: gcr.io/YOUR_PROJECT_ID/n8n-cloudrun:latest
+        ports:
+        - containerPort: 8080
+        env:
+        # 基本設定
+        - name: N8N_PORT
+          value: "8080"
+        - name: N8N_HOST
+          value: "0.0.0.0"
+        - name: N8N_PROTOCOL
+          value: "https"
+        - name: N8N_EDITOR_BASE_URL
+          value: "https://YOUR_CLOUDRUN_URL"
+        
+        # 認証設定（セキュリティのため）
+        - name: N8N_BASIC_AUTH_ACTIVE
+          value: "true"
+        - name: N8N_BASIC_AUTH_USER
+          value: "admin"
+        - name: N8N_BASIC_AUTH_PASSWORD
+          value: "YOUR_SECURE_PASSWORD"
+        
+        # データベース設定（SQLiteからPostgreSQLに変更推奨）
+        - name: DB_TYPE
+          value: "postgresdb"
+        - name: DB_POSTGRESDB_HOST
+          value: "YOUR_CLOUD_SQL_HOST"
+        - name: DB_POSTGRESDB_PORT
+          value: "5432"
+        - name: DB_POSTGRESDB_DATABASE
+          value: "n8n"
+        - name: DB_POSTGRESDB_USER
+          value: "n8n_user"
+        - name: DB_POSTGRESDB_PASSWORD
+          value: "YOUR_DB_PASSWORD"
+        
+        # 暗号化キー（重要！）
+        - name: N8N_ENCRYPTION_KEY
+          value: "YOUR_ENCRYPTION_KEY"
+        
+        # ログ設定
+        - name: N8N_LOG_LEVEL
+          value: "info"
+        
+        # メトリクス有効化
+        - name: N8N_METRICS
+          value: "true"
+        
+        # Webhook設定
+        - name: WEBHOOK_URL
+          value: "https://YOUR_CLOUDRUN_URL"
+        
+        # ファイルストレージ設定（Cloud Storage使用時）
+        - name: N8N_DEFAULT_BINARY_DATA_MODE
+          value: "filesystem"
+        
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        
+        # ヘルスチェック
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        
+        # Cloud Storageボリュームマウント（Previewフィーチャー）
+        volumeMounts:
+        - name: n8n-storage
+          mountPath: /home/node/.n8n
+      
+      volumes:
+      - name: n8n-storage
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            bucketName: YOUR_BUCKET_NAME
+            mountOptions: "implicit-dirs"

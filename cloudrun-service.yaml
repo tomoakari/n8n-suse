@@ -77,6 +77,14 @@ spec:
         - name: N8N_DEFAULT_BINARY_DATA_MODE
           value: "filesystem"
         
+        # パーミッション問題の解決
+        - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
+          value: "true"
+        
+        # CloudRun用の追加設定
+        - name: N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN
+          value: "true"
+        
         resources:
           limits:
             cpu: 1000m

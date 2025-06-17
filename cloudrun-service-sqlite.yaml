@@ -1,0 +1,116 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: n8n-service-sqlite
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        # 最小/最大インスタンス数
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        # CPUとメモリの設定（SQLiteなので少し控えめ）
+        run.googleapis.com/cpu: "1"
+        run.googleapis.com/memory: "1Gi"
+        # タイムアウト設定
+        run.googleapis.com/timeout: "3600"
+    spec:
+      containerConcurrency: 1000
+      containers:
+      - name: n8n
+        image: gcr.io/YOUR_PROJECT_ID/n8n-cloudrun:latest
+        ports:
+        - containerPort: 8080
+        env:
+        # 基本設定
+        - name: N8N_PORT
+          value: "8080"
+        - name: N8N_HOST
+          value: "0.0.0.0"
+        - name: N8N_PROTOCOL
+          value: "https"
+        - name: N8N_EDITOR_BASE_URL
+          value: "https://YOUR_CLOUDRUN_URL"
+        
+        # 認証設定（セキュリティのため）
+        - name: N8N_BASIC_AUTH_ACTIVE
+          value: "true"
+        - name: N8N_BASIC_AUTH_USER
+          value: "admin"
+        - name: N8N_BASIC_AUTH_PASSWORD
+          value: "YOUR_SECURE_PASSWORD"
+        
+        # SQLite データベース設定
+        - name: DB_TYPE
+          value: "sqlite"
+        
+        # 暗号化キー（重要！）
+        - name: N8N_ENCRYPTION_KEY
+          value: "YOUR_ENCRYPTION_KEY"
+        
+        # ログ設定
+        - name: N8N_LOG_LEVEL
+          value: "info"
+        
+        # メトリクス有効化
+        - name: N8N_METRICS
+          value: "true"
+        
+        # Webhook設定
+        - name: WEBHOOK_URL
+          value: "https://YOUR_CLOUDRUN_URL"
+        
+        # ファイルストレージ設定（Cloud Storage使用）
+        - name: N8N_DEFAULT_BINARY_DATA_MODE
+          value: "filesystem"
+        
+        # パーミッション問題の解決
+        - name: N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS
+          value: "true"
+        
+        # CloudRun用の追加設定
+        - name: N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN
+          value: "true"
+        
+        # SQLite 最適化設定
+        - name: N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN
+          value: "true"
+        
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        
+        # ヘルスチェック
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        
+        # Cloud Storageボリュームマウント（Previewフィーチャー）
+        volumeMounts:
+        - name: n8n-storage
+          mountPath: /home/node/.n8n
+      
+      volumes:
+      - name: n8n-storage
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            bucketName: YOUR_BUCKET_NAME
+            mountOptions: "implicit-dirs"

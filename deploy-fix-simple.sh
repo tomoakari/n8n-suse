@@ -21,12 +21,10 @@ gcloud config set project $PROJECT_ID
 echo "🐳 Step 2: シンプル版Dockerイメージをビルド中..."
 
 # Dockerfile.simpleを一時的にDockerfileとしてコピー
-cp Dockerfile.simple Dockerfile.temp
+cp Dockerfile.simple Dockerfile
 
-gcloud builds submit --tag gcr.io/$PROJECT_ID/$IMAGE_NAME -f Dockerfile.temp .
-
-# 一時ファイルを削除
-rm -f Dockerfile.temp
+echo "Dockerfile.simpleを使用してビルドします..."
+gcloud builds submit --tag gcr.io/$PROJECT_ID/$IMAGE_NAME
 
 echo "✅ シンプル版イメージビルド完了！"
 
@@ -57,9 +55,9 @@ fi
 
 echo ""
 echo "🔧 修復内容："
-echo "   - 複雑なスクリプト生成を削除"
+echo "   - Dockerfile.simple を使用"
 echo "   - 環境変数のみでパーミッション問題を解決"
-echo "   - Dockerfile構文エラーを完全回避"
+echo "   - gcloud builds コマンド修正"
 echo "   - より安定した動作"
 echo ""
 echo "🎉 修復完了！n8nが正常に起動するはずです！"
